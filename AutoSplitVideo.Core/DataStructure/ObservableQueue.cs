@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
 
 namespace AutoSplitVideo.Core.DataStructure
 {
-	public class ObservableQueue<T> : Queue<T>, INotifyCollectionChanged, INotifyPropertyChanged
+	public class ObservableQueue<T> : ConcurrentQueue<T>, INotifyCollectionChanged, INotifyPropertyChanged
 	{
 		public int MaxSize { get; }
 
@@ -22,11 +23,17 @@ namespace AutoSplitVideo.Core.DataStructure
 			OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
 		}
 
-		public new T Dequeue()
+		public new bool TryDequeue(out T item)
 		{
-			var item = base.Dequeue();
-			OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, item));
-			return item;
+			T dequeueItem;
+			var dequeueResult = base.TryDequeue(out dequeueItem);
+			if (dequeueResult)
+			{
+				OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, dequeueItem));
+			}
+			item = dequeueItem;
+
+			return dequeueResult;
 		}
 
 		public new void Enqueue(T item)
@@ -34,7 +41,7 @@ namespace AutoSplitVideo.Core.DataStructure
 			base.Enqueue(item);
 			while (Count > MaxSize)
 			{
-				Dequeue();
+				_ = TryDequeue(out _);
 			}
 			OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, item));
 		}
